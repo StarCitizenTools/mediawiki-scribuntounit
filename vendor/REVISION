@@ -1,0 +1,48 @@
+dkjson 2.5 — David Kolf's JSON module for Lua
+Source: https://github.com/LuaDist/dkjson (mirrors http://dkolf.de/src/dkjson-lua.fsl/)
+Fetched: 2026-06-16 via curl from raw.githubusercontent.com/LuaDist/dkjson/master/dkjson.lua
+License: MIT
+
+---
+
+Scribunto lualib (mw/) — pure-Lua MediaWiki library core
+Source: https://github.com/wikimedia/mediawiki-extensions-Scribunto
+Branch/ref: REL1_43
+Fetched: 2026-06-16 via curl from
+  raw.githubusercontent.com/wikimedia/mediawiki-extensions-Scribunto/REL1_43/includes/Engines/LuaCommon/lualib/
+License: GPL-2.0-or-later
+
+Vendored files (verbatim, unmodified):
+  mw/libraryUtil.lua
+  mw/mw.lua                 (reference only; not loaded by the harness)
+  mw/mwInit.lua             (reference only; not loaded by the harness)
+  mw/mw.text.lua
+  mw/mw.uri.lua
+  mw/mw.html.lua
+
+This pin (REL1_43) IS the fidelity guarantee: mw.html / mw.text / mw.uri behave
+as they do on a wiki running that MediaWiki release. To track a different
+release, re-vendor the lualib from that branch and update this file.
+
+Headless-init status (src/mwenv.lua wires each via setupInterface with a
+minimal/empty mw_interface stand-in — see the per-lib comments there):
+  mw.text     FULLY HEADLESS (lualib)  — trim/encode/decode/split; the PHP-only
+                                         paths (unstrip/killMarkers/json*) are
+                                         stubbed and error only if hit
+  mw.uri      FULLY HEADLESS (lualib)  — encode/decode pure-Lua; focused shim
+                                         installed if init throws
+  mw.html     FULLY HEADLESS (lualib)  — self-contained builder, uniq markers only
+
+SHIMMED in src/mwenv.lua (the full libs need deep PHP locale/parser callbacks;
+only the format-facing surface module code uses is shimmed):
+  mw.ustring  — byte-wise via Lua string.* PLUS a real UTF-8 char/codepoint
+                (mw.text.decode needs char to expand numeric entities). Not the
+                full ~15k-line Unicode lib; re-vendor it from REL1_43 if a suite
+                needs real multibyte case/normalisation.
+  mw.language — grouped formatNum (U+2212 minus, as on-wiki) + lc/uc/ucfirst/lcfirst
+  mw.title    — benign stub object (getCurrentTitle / makeTitle / new)
+  mw.site     — File namespace (id 6); consumers can override via config setup
+  mw.getCurrentFrame / mw.log / mw.dumpObject — minimal core
+
+NOT provided here: consumer-specific surface (mw.ext.*, render-primitive stubs).
+The consumer supplies those through scribuntounit.config.lua (stubs + setup hook).

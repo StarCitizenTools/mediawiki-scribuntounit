@@ -1,0 +1,21 @@
+mediawiki-scribuntounit is distributed under multiple licenses.
+
+SPDX-License-Identifier: GPL-2.0-or-later AND MIT
+
+The COMBINED DISTRIBUTION is GPL-2.0-or-later (copyleft), because it bundles the
+MediaWiki Scribunto pure-Lua libraries under vendor/mw/, which are licensed
+GPL-2.0-or-later. Full text: LICENSES/GPL-2.0-or-later.txt.
+
+The RUNNER ITSELF — everything under src/, bin/, and examples/, written for this
+project — is independently licensed MIT (each such file carries
+`SPDX-License-Identifier: MIT`). You may reuse those files on their own under the
+MIT terms in LICENSES/MIT.txt.
+
+Bundled third-party components:
+
+  vendor/mw/*.lua    MediaWiki Scribunto lualib (mw.html/mw.text/mw.uri/…)
+                     GPL-2.0-or-later — verbatim, unmodified upstream
+  vendor/dkjson.lua  David Kolf's dkjson
+                     MIT (see the header in that file)
+
+See vendor/REVISION for exact upstream provenance (source, branch/ref, fetch date).

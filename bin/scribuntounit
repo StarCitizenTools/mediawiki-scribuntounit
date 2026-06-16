@@ -1,0 +1,26 @@
+#!/bin/sh
+# scribuntounit — off-wiki ScribuntoUnit runner launcher.
+# SPDX-License-Identifier: MIT
+#
+# Resolves its own real location (following symlinks — mise puts a symlink on
+# PATH), then execs the SYSTEM lua5.1 against src/run.lua. Run from the consumer
+# repo root (cwd is preserved); pass an optional Module-path filter as $1.
+
+src="$0"
+while [ -h "$src" ]; do
+	dir=$(cd -P "$(dirname "$src")" && pwd)
+	src=$(readlink "$src")
+	case "$src" in
+		/*) ;;
+		*) src="$dir/$src" ;;
+	esac
+done
+ROOT=$(cd -P "$(dirname "$src")/.." && pwd)
+
+if ! command -v lua5.1 >/dev/null 2>&1; then
+	echo "scribuntounit: requires 'lua5.1' on PATH (apt: lua5.1 / brew: lua@5.1)." >&2
+	echo "Do NOT use mise's lua plugin: it builds from source and fails on stock CI runners." >&2
+	exit 127
+fi
+
+exec lua5.1 "$ROOT/src/run.lua" "$@"

@@ -1,0 +1,29 @@
+name: Release
+
+# On a version tag, build the platform-independent (pure-Lua) tarball and attach
+# it to a GitHub release, so mise's `github` backend can install it:
+#   [tools]
+#   "github:StarCitizenTools/mediawiki-scribuntounit" = { version = "X", bin_path = "bin" }
+# The archive has src/, vendor/, bin/ at its root (no wrapping dir → no
+# strip_components); bin/scribuntounit is the exposed launcher.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build tarball
+        run: tar czf "mediawiki-scribuntounit-${GITHUB_REF_NAME}.tar.gz" src vendor bin LICENSE LICENSES README.md AGENTS.md
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" "mediawiki-scribuntounit-${GITHUB_REF_NAME}.tar.gz" --generate-notes

@@ -1,0 +1,17 @@
+[tools]
+stylua = "latest"
+# lua5.1 is a SYSTEM prerequisite (apt: lua5.1 / brew: lua@5.1). It is intentionally
+# NOT mise-managed: mise's lua plugin builds the interpreter from source, which
+# fails on stock CI runners. Install the system package instead.
+
+[tasks.test]
+run = "REPO_ROOT=examples lua5.1 src/run.lua"
+description = "Run the library's self-test suites (examples/)"
+
+[tasks.lint]
+run = "stylua --check src/ examples/"
+description = "Check Lua formatting"
+
+[tasks.fix]
+run = "stylua src/ examples/"
+description = "Auto-fix Lua formatting"
