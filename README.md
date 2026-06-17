@@ -2,13 +2,13 @@
 
 **Run your MediaWiki [ScribuntoUnit](https://www.mediawiki.org/wiki/Module:ScribuntoUnit) suites headless, in CI — no wiki, no PHP, no LuaSandbox.**
 
-A general-purpose off-wiki runner for [Scribunto](https://www.mediawiki.org/wiki/Extension:Scribunto) (Lua 5.1) module tests. It vendors the **real** Scribunto `REL1_43` Lua library (`mw.html` / `mw.text` / `mw.uri`), shims the PHP-coupled surface, resolves `require('Module:X')` to your repo's files, auto-discovers `**/testcases.lua`, and exits non-zero on failure — so a plain `lua5.1` on a GitHub Actions runner gates your modules before they ship.
+A general-purpose off-wiki runner for [Scribunto](https://www.mediawiki.org/wiki/Extension:Scribunto) (Lua 5.1) module tests. It fetches the **real** Scribunto Lua library (`mw.html` / `mw.text` / `mw.uri`) for your chosen MediaWiki ref, shims the PHP-coupled surface, resolves `require('Module:X')` to your repo's files, auto-discovers `**/testcases.lua`, and exits non-zero on failure — so a plain `lua5.1` on a GitHub Actions runner gates your modules before they ship.
 
 ## Why
 
 If you keep your wiki's Lua modules in git and want pre-deploy CI, your options today are thin: the canonical ScribuntoUnit runs only *on-wiki* (deploy first, then read the result), and the off-wiki mocks are partial hand-written stand-ins with no test discovery and no CI story. This runner is different on three axes at once:
 
-1. **Fidelity** — it loads the *actual* vendored lualib, not a re-implementation, so `mw.html`/`mw.text`/`mw.uri` behave as they do on the wiki (pinned to a known MediaWiki release).
+1. **Fidelity** — it loads the *actual* fetched lualib, not a re-implementation, so `mw.html`/`mw.text`/`mw.uri` behave as they do on the wiki (matching the Scribunto ref you choose).
 2. **Headless CI** — pure `lua5.1`, red/green exit code, a drop-in GitHub Actions workflow.
 3. **Zero-config discovery** — it finds every `Module:X/testcases.lua` you already have.
 
@@ -18,7 +18,7 @@ This runner gates **logic**, not rendering or live wiki I/O. It is honest about 
 
 | Surface | Status |
 |---|---|
-| `mw.html`, `mw.text`, `mw.uri` | **Real** (vendored `REL1_43` lualib) |
+| `mw.html`, `mw.text`, `mw.uri` | **Real** (fetched Scribunto lualib at your chosen ref) |
 | `mw.ustring` | Shim — byte-wise via Lua `string.*`, plus real UTF-8 `char`/`codepoint`. No full Unicode case/normalisation. |
 | `mw.language` | Shim — grouped `formatNum`, `lc`/`uc`/`ucfirst`/`lcfirst`. No locale data, no `formatDate`. |
 | `mw.title`, `mw.site` | Benign stubs |
@@ -45,6 +45,24 @@ In your repo's `.mise.toml`:
 
 `mise install` puts a `scribuntounit` command on your `PATH`.
 
+After install, fetch the Scribunto lualib once (it is not bundled):
+
+```sh
+scribuntounit-fetch                 # reads scribunto.ref from your config
+```
+
+The lualib lands in a local cache at `.scribuntounit/` — add it to `.gitignore`. A
+`mise` task that fetches then tests:
+
+```toml
+[tasks.fetch]
+run = "scribuntounit-fetch"
+
+[tasks.test]
+depends = ["fetch"]
+run = "scribuntounit"
+```
+
 ### Manual (git submodule / vendored copy)
 
 Clone or submodule the repo and call the entry point directly:
@@ -61,6 +79,10 @@ Drop a **`scribuntounit.config.lua`** at your repo root:
 return {
   -- Where Module:X resolves and where **/testcases.lua are discovered.
   moduleRoot = 'pages/module',
+
+  -- Scribunto lualib ref to fetch (overridable via SCRIBUNTO_REF). The chosen
+  -- ref is the fidelity guarantee — pick the MediaWiki release your wiki runs.
+  scribunto = { ref = 'REL1_43' },
 
   -- Render primitives with no headless-safe build: installed as inert stubs
   -- (every method returns ''), so suites that only need a string back load fine.
@@ -106,15 +128,20 @@ A copy-paste GitHub Actions job (system lua5.1, then the runner):
 - run: mise run test                # or: lua5.1 path/to/src/run.lua
 ```
 
-## Vendored library pin
+## Lualib source (fetched, not vendored)
 
-`vendor/REVISION` records the exact Scribunto lualib branch/ref (`REL1_43`), the files vendored, and the dkjson version — this pin *is* the fidelity guarantee. To track a different MediaWiki release, re-vendor the lualib from that branch and update `REVISION`.
+The Scribunto lualib is **not bundled**. `scribuntounit-fetch` downloads it for the
+ref in `scribunto.ref` (or the `SCRIBUNTO_REF` env var) into a local, gitignored
+cache at `.scribuntounit/lualib/`; the runner reads it from there and never
+redistributes it. The chosen ref *is* the fidelity guarantee. To track a different
+MediaWiki release, change `scribunto.ref` (or set `SCRIBUNTO_REF`) and re-run
+`scribuntounit-fetch`. Only `vendor/dkjson.lua` (MIT) stays vendored.
 
 ## License
 
-`GPL-2.0-or-later AND MIT`. The combined distribution is GPL-2.0-or-later because it bundles the GPL Scribunto lualib (`vendor/mw/`); the runner code under `src/`, `bin/`, `examples/` is independently MIT. See [LICENSE](LICENSE).
+**MIT.** Only `vendor/dkjson.lua` (MIT) is vendored. See [LICENSE](LICENSE).
 
 ## See also
 
 - [Module:ScribuntoUnit](https://www.mediawiki.org/wiki/Module:ScribuntoUnit) — the on-wiki assertion framework this runs.
-- [Extension:Scribunto](https://www.mediawiki.org/wiki/Extension:Scribunto) — the upstream of the vendored lualib.
+- [Extension:Scribunto](https://www.mediawiki.org/wiki/Extension:Scribunto) — the upstream of the fetched lualib.
