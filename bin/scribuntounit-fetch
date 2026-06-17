@@ -73,8 +73,19 @@ while IFS="$tab" read -r repo ref src dest; do
 	tar -xzf "$tmp/src.tgz" -C "$tmp"
 	rm -rf "$destdir"
 	mkdir -p "$destdir"
-	# Tarball top dir is <repo-name>-<ref>; copy the CONTENTS of its <src> subdir.
-	cp -R "$tmp"/*/"$src"/. "$destdir"/
+	# Tarball top dir is <repo-name>-<ref>. Resolve the single <src> match and copy
+	# a directory's contents or a single file into destdir.
+	set -- "$tmp"/*/"$src"
+	srcpath="$1"
+	if [ "$#" -ne 1 ] || [ ! -e "$srcpath" ]; then
+		echo "scribuntounit-fetch: expected exactly one '$src' in $repo@$ref" >&2
+		exit 1
+	fi
+	if [ -d "$srcpath" ]; then
+		cp -R "$srcpath"/. "$destdir"/
+	else
+		cp "$srcpath" "$destdir"/
+	fi
 	rm -rf "$tmp"
 	tmp=""
 done <"$manifest"
