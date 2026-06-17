@@ -1,4 +1,4 @@
-# Vendored upstream code (Scribunto lualib + dkjson) — exclude from GitHub's
+# Vendored upstream code (dkjson) — exclude from GitHub's
 # language stats and collapse it in diffs, so the repo reads as the authored
 # runner, not the bundled libraries. Keep these files verbatim; do NOT reformat.
 vendor/** linguist-vendored linguist-generated
