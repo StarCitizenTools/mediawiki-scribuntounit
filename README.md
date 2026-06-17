@@ -14,7 +14,7 @@ Run your MediaWiki [ScribuntoUnit](https://www.mediawiki.org/wiki/Module:Scribun
 
    ```toml
    [tools]
-   "github:StarCitizenTools/mediawiki-scribuntounit" = { version = "0.1.0", bin_path = "bin" }
+   "github:StarCitizenTools/mediawiki-scribuntounit" = { version = "0.2.0", bin_path = "bin" }
 
    [tasks.fetch]
    run = "scribuntounit-fetch"   # downloads the Scribunto library (not bundled)
