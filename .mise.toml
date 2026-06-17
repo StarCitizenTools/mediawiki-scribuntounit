@@ -4,7 +4,12 @@ stylua = "latest"
 # NOT mise-managed: mise's lua plugin builds the interpreter from source, which
 # fails on stock CI runners. Install the system package instead.
 
+[tasks.fetch]
+run = "REPO_ROOT=examples bin/scribuntounit-fetch"
+description = "Fetch the Scribunto lualib for the examples self-test"
+
 [tasks.test]
+depends = ["fetch"]
 run = "REPO_ROOT=examples lua5.1 src/run.lua"
 description = "Run the library's self-test suites (examples/)"
 

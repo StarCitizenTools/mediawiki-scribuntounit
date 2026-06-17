@@ -23,5 +23,14 @@ jobs:
       # plugin builds from source and fails on stock runners.
       - name: Install Lua 5.1
         run: sudo apt-get update && sudo apt-get install -y lua5.1
+      # Keyed on the config that pins scribunto.ref. NOTE: REL1_43 is a moving
+      # branch, so a config-unchanged run serves the cached lualib even if upstream
+      # advances — purge this cache to force a refresh. If you add a matrix on the
+      # SCRIBUNTO_REF env (which overrides scribunto.ref), add it to the key too.
+      - name: Cache fetched lualib
+        uses: actions/cache@v5
+        with:
+          path: examples/.scribuntounit
+          key: lualib-${{ hashFiles('examples/scribuntounit.config.lua') }}
       - name: Self-test (off-wiki ScribuntoUnit suites)
         run: mise run test
