@@ -4,6 +4,9 @@
 ---   libRoot  — installed library root (contains src/ and vendor/)
 ---   repoRoot — consumer repo root: where the modules-under-test, their testcases,
 ---              and scribuntounit.config.lua live. Defaults to $REPO_ROOT or cwd.
+---   lualibRoot — resolved Scribunto lualib dir (env SCRIBUNTO_LUALIB / config
+---                scribunto.lualib / <repoRoot>/.scribuntounit/lualib); set by
+---                bootstrap.lua before mwenv loads.
 local M = {
 	libRoot = '.',
 	repoRoot = os.getenv('REPO_ROOT') or '.',

@@ -1,0 +1,80 @@
+#!/bin/sh
+# scribuntounit-fetch — populate $REPO_ROOT/.scribuntounit/ from the runner's
+# fetch manifest (the Scribunto lualib, and in Part 2, extension libs).
+# SPDX-License-Identifier: MIT
+#
+# The Lua runner has no network code; this helper does the downloading. It asks
+# the runner for the manifest (`run.lua --print-fetch-manifest`, which loads only
+# the consumer config), then for each TAB-separated line downloads the repo
+# tarball at the ref and extracts the named subpath into the dest dir.
+set -eu
+
+force=0
+[ "${1:-}" = "--force" ] && force=1
+
+# Resolve our own real location (follow symlinks — mise puts a symlink on PATH),
+# then find ../src/run.lua relative to it.
+self="$0"
+while [ -h "$self" ]; do
+	d=$(cd -P "$(dirname "$self")" && pwd)
+	self=$(readlink "$self")
+	case "$self" in
+		/*) ;;
+		*) self="$d/$self" ;;
+	esac
+done
+ROOT=$(cd -P "$(dirname "$self")/.." && pwd)
+
+command -v lua5.1 >/dev/null 2>&1 || {
+	echo "scribuntounit-fetch: requires 'lua5.1' on PATH (apt: lua5.1 / brew: lua@5.1)." >&2
+	echo "Do NOT use mise's lua plugin: it builds from source and fails on stock CI runners." >&2
+	exit 127
+}
+
+# Resolve REPO_ROOT to an absolute path so dest dirs are stable across cwd changes.
+REPO_ROOT=$(cd "${REPO_ROOT:-.}" && pwd)
+
+# Download $1 to $2 using curl or wget (whichever is present).
+download() {
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL "$1" -o "$2"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -nv "$1" -O "$2"
+	else
+		echo "scribuntounit-fetch: need 'curl' or 'wget' to download." >&2
+		exit 127
+	fi
+}
+
+# Clean up temp resources on any exit (manifest file + the in-flight extract dir).
+manifest=""
+tmp=""
+cleanup() {
+	if [ -n "$tmp" ]; then rm -rf "$tmp"; fi
+	if [ -n "$manifest" ]; then rm -f "$manifest"; fi
+}
+trap cleanup EXIT
+
+manifest=$(mktemp)
+REPO_ROOT="$REPO_ROOT" lua5.1 "$ROOT/src/run.lua" --print-fetch-manifest >"$manifest"
+
+# Read TAB-separated: repo<TAB>ref<TAB>srcsubdir<TAB>dest
+tab=$(printf '\t')
+while IFS="$tab" read -r repo ref src dest; do
+	[ -n "$repo" ] || continue
+	destdir="$REPO_ROOT/$dest"
+	if [ "$force" -eq 0 ] && [ -d "$destdir" ] && [ -n "$(ls -A "$destdir" 2>/dev/null)" ]; then
+		echo "scribuntounit-fetch: $dest present, skipping ($repo@$ref)"
+		continue
+	fi
+	echo "scribuntounit-fetch: fetching $repo@$ref -> $dest"
+	tmp=$(mktemp -d)
+	download "https://github.com/$repo/archive/$ref.tar.gz" "$tmp/src.tgz"
+	tar -xzf "$tmp/src.tgz" -C "$tmp"
+	rm -rf "$destdir"
+	mkdir -p "$destdir"
+	# Tarball top dir is <repo-name>-<ref>; copy the CONTENTS of its <src> subdir.
+	cp -R "$tmp"/*/"$src"/. "$destdir"/
+	rm -rf "$tmp"
+	tmp=""
+done <"$manifest"

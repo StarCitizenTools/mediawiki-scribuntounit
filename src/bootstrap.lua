@@ -6,12 +6,32 @@
 local config = require('config').load()
 local resolver = require('resolver')
 local shims = require('shims')
+local paths = require('paths')
 
 resolver.configure(config.moduleRoot)
 
 shims.installStrict()
 shims.installStubs(config.stubs)
 resolver.install()
+
+-- Resolve the Scribunto lualib root BEFORE mwenv loads (mwenv reads it at require
+-- time). Priority: SCRIBUNTO_LUALIB env, config.scribunto.lualib, then the
+-- conventional fetch cache <repoRoot>/.scribuntounit/lualib.
+local scribunto = config.scribunto or {}
+paths.lualibRoot = os.getenv('SCRIBUNTO_LUALIB') or scribunto.lualib or (paths.repoRoot .. '/.scribuntounit/lualib')
+
+-- Fail fast with an actionable message if the lualib has not been fetched.
+local probe = io.open(paths.lualibRoot .. '/mw.text.lua', 'r')
+if probe then
+	probe:close()
+else
+	io.stderr:write(
+		'ERROR: Scribunto lualib not found at '
+			.. paths.lualibRoot
+			.. '\n  Run `mise run fetch` (or `scribuntounit-fetch`), or set SCRIBUNTO_LUALIB to a lualib dir.\n'
+	)
+	os.exit(1)
+end
 
 local mwenv = require('mwenv')
 _G.mw = mwenv.mw

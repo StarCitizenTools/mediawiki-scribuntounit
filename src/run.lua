@@ -6,10 +6,13 @@
 --- Usage (from the consumer repo root):
 ---   lua5.1 /path/to/mediawiki-scribuntounit/src/run.lua [filter]
 ---   <filter> is an optional substring of the Module: path (e.g. "Foo", "Foo/Bar").
+---   lua5.1 .../src/run.lua --print-fetch-manifest  emits the upstream fetch list
+---     (TAB-separated repo/ref/src/dest) for bin/scribuntounit-fetch, then exits.
 --- Set REPO_ROOT to run from any cwd; otherwise the consumer repo is the cwd.
 
--- Resolve our own location so sibling modules load regardless of cwd, and so the
--- vendored lualib (../vendor) is found via paths.libRoot.
+-- Resolve our own location so sibling modules load regardless of cwd, and so
+-- vendor/dkjson.lua is found via paths.libRoot. (The Scribunto lualib is fetched
+-- separately and found via paths.lualibRoot — see bootstrap.lua.)
 local selfPath = (arg and arg[0]) or ''
 local libSrc = selfPath:match('^(.*)[/\\][^/\\]+$') or '.'
 package.path = libSrc .. '/?.lua;' .. package.path
@@ -17,6 +20,14 @@ package.path = libSrc .. '/?.lua;' .. package.path
 local paths = require('paths')
 paths.libRoot = libSrc .. '/..'
 paths.repoRoot = os.getenv('REPO_ROOT') or '.'
+
+-- `--print-fetch-manifest`: emit the upstream fetch list (TAB-separated) for the
+-- bin/scribuntounit-fetch helper, then exit. Loads only the consumer config — no
+-- mw env — so it runs before any lualib has been fetched.
+if arg and arg[1] == '--print-fetch-manifest' then
+	io.write(require('manifest').render(require('config').load()))
+	os.exit(0)
+end
 
 -- Optional substring filter on the Module: path; a leading "Module:" is accepted
 -- (e.g. "Foo", "Foo/Bar", or "Module:Foo" all work).
