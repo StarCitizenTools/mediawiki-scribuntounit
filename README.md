@@ -107,6 +107,36 @@ The config is looked up at `<repoRoot>/scribuntounit.config.lua`, or at the path
 
 Your `Module:ScribuntoUnit` (the canonical on-wiki assertion framework) must live under `moduleRoot` like any other module — the runner loads *your* copy.
 
+## Extension libraries (`mw.ext.*`)
+
+If your modules call an extension's Scribunto library, declare it under `libraries`
+to load the **real** upstream Lua (its pure-Lua helpers run for real and track the
+extension version). Only the PHP leaves (`render`, `thumb`, …) are stubbed — and
+they default to a benign `''`, so `interface` is optional:
+
+```lua
+libraries = {
+  -- fetched: scribuntounit-fetch downloads it (repo@ref) into .scribuntounit/ext/
+  ['mw.ext.aggrid'] = {
+    repo = 'StarCitizenTools/mediawiki-extensions-AGGrid',
+    ref  = 'v0.4.0',
+    path = 'includes/Scribunto/mw.ext.aggrid.lua',
+    -- interface OPTIONAL; override a leaf only if a test asserts on it:
+    -- interface = { thumb = function() return nil end },
+  },
+  -- local: a .lua already on disk (e.g. a checked-out extension), no fetch:
+  ['mw.ext.tabber'] = { path = 'path/to/mw.ext.tabber.lua' },
+}
+```
+
+Thin libraries that are just a single PHP passthrough gain nothing from this — keep
+stubbing them with `api.preload` in `setup`.
+
+**Caveat — `mw.*` beyond the leaves.** A real helper may call `mw.*` methods the
+runner doesn't shim (e.g. AGGrid's `link` calls `mw.title.new(t):localUrl()`, and
+the `mw.title` stub has no `localUrl`). Add what it needs in your `setup` hook
+(override `mw.title`); the runner stays extension-agnostic.
+
 ## Run
 
 ```sh
