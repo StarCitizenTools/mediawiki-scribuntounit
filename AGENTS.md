@@ -25,6 +25,7 @@ files, and auto-discovering `**/testcases.lua`.
   - `mwenv.lua` — the headless `mw.*` environment (fetched lualib + generic shims).
   - `config.lua` — loads the consumer's `scribuntounit.config.lua`.
   - `paths.lua` — resolved `libRoot` / `repoRoot` singleton.
+  - `extlib.lua` — loads consumer `libraries` (extension `mw.ext.*`) from real Lua.
 - `vendor/` — bundled `dkjson.lua` (MIT), **verbatim**, the only committed
   third-party file. The Scribunto lualib is **fetched** (not vendored) by
   `bin/scribuntounit-fetch`; see `vendor/REVISION`.
@@ -40,7 +41,12 @@ The reusable design is a **config seam**: generic runner code in `src/` knows
 nothing about any particular wiki; a consumer drops a `scribuntounit.config.lua`
 at its repo root declaring `{ moduleRoot, stubs, setup }`. The `setup(api)` hook
 (`api.mw`, `api.stub(name, value)`, `api.preload(name, fn)`) is where a consumer
-registers its render-primitive stubs and `mw.ext.*` modules. Generic `mw.*`
+registers its render-primitive stubs and `mw.ext.*` modules. A consumer can
+instead declare extension libraries under `libraries` (name →
+`{ repo?, ref?, path, interface? }`); `extlib.lua` loads the real upstream `.lua`
+and stubs only its PHP leaves (benign `''` default). Real helpers may need `mw.*`
+surface beyond the leaves (e.g. `mw.title:localUrl`) — the consumer adds it in
+`setup`. Generic `mw.*`
 shims (ustring, language, title, site) live in `mwenv.lua`; wiki-specific stubs do
 NOT — keep that boundary.
 
