@@ -5,6 +5,9 @@ return {
 	-- Modules + testcases live under examples/modules/ (relative to REPO_ROOT).
 	moduleRoot = 'modules',
 
+	-- Pin the Scribunto lualib ref the self-test fetches.
+	scribunto = { ref = 'REL1_43' },
+
 	-- Render primitives with no headless-safe implementation: install as inert
 	-- stubs so suites that only need a string back don't drag in the real module.
 	stubs = { 'Icon' },

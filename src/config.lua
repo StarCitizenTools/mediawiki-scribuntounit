@@ -18,9 +18,11 @@ local DEFAULTS = {
 	-- Optional function(api) to extend the env: api.mw (the assembled mw table),
 	-- api.stub(name, value), api.preload(name, fn).
 	setup = nil,
+	-- Core Scribunto lualib ref to fetch (overridable via SCRIBUNTO_REF env).
+	scribunto = { ref = 'REL1_43' },
 }
 
---- @return table config  fields: moduleRoot, stubs, skip, setup
+--- @return table config  fields: moduleRoot, stubs, skip, setup, scribunto
 function M.load()
 	local path = os.getenv('SCRIBUNTOUNIT_CONFIG') or (paths.repoRoot .. '/scribuntounit.config.lua')
 	local cfg = {}
@@ -39,6 +41,12 @@ function M.load()
 	end
 	if cfg.skip == nil then
 		cfg.skip = DEFAULTS.skip
+	end
+	if cfg.scribunto == nil then
+		cfg.scribunto = {}
+	end
+	if cfg.scribunto.ref == nil then
+		cfg.scribunto.ref = DEFAULTS.scribunto.ref
 	end
 	return cfg
 end

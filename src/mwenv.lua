@@ -3,7 +3,7 @@
 --- suites off-wiki. Built in two layers:
 ---   1. A minimal core (loadData/loadJsonData, getCurrentFrame stub, ustring
 ---      find/format/sub + UTF-8 char/codepoint, dumpObject, title/site stubs).
----   2. The vendored pure-Lua lualib (mw.text, mw.uri, mw.html) headless-
+---   2. The fetched pure-Lua lualib (mw.text, mw.uri, mw.html) headless-
 ---      initialised on top, so format-touching suites have a real surface, plus
 ---      a shim for the PHP-coupled mw.language. Failures here are isolated and
 ---      reported via mwenv.lualibStatus rather than breaking the minimal core.
@@ -14,8 +14,10 @@
 local paths = require('paths')
 local shims = require('shims')
 
-local function vendorDir()
-	return paths.libRoot .. '/vendor/mw'
+-- Where the Scribunto lualib lives, resolved by bootstrap.lua (env / config /
+-- fetch cache).
+local function lualibDir()
+	return paths.lualibRoot
 end
 
 local M = {}
@@ -102,7 +104,7 @@ function mw.dumpObject(object)
 end
 
 -- Minimal ustring — delegate to Lua string.* (ASCII-correct); the lualib layer
--- does not replace these (we do not vendor the full ustring lib).
+-- does not replace these (we do not include the full ustring lib).
 mw.ustring = {
 	format = string.format,
 	sub = string.sub,
@@ -170,7 +172,7 @@ function mw.ustring.codepoint(s, i)
 		+ (s:byte(i + 3) - 0x80)
 end
 
--- Minimal mw.text — replaced by the vendored lib when it loads.
+-- Minimal mw.text — replaced by the fetched lualib when it loads.
 mw.text = {
 	nowiki = function(s)
 		return tostring(s)
@@ -223,7 +225,7 @@ mw.site = {
 	},
 }
 
--- ── Vendored lualib layer ────────────────────────────────────────────────────
+-- ── Fetched lualib layer ─────────────────────────────────────────────────────
 -- Headless-initialise the pure-Lua libraries. Each exposes setupInterface(opts)
 -- that, on-wiki, receives a PHP callback table; headless we pass minimal opts and
 -- Lua stand-ins for the few PHP callbacks the pure-Lua paths invoke.
@@ -239,11 +241,11 @@ local function fileExists(p)
 	return false
 end
 
---- Load a vendored lualib file by basename; returns the module value or nil + err.
-local function loadVendored(basename)
-	local path = vendorDir() .. '/' .. basename
+--- Load a lualib file by basename; returns the module value or nil + err.
+local function loadLualib(basename)
+	local path = lualibDir() .. '/' .. basename
 	if not fileExists(path) then
-		return nil, 'not vendored: ' .. path
+		return nil, 'lualib file not found: ' .. path
 	end
 	local chunk, err = loadfile(path)
 	if not chunk then
@@ -256,18 +258,18 @@ local function loadVendored(basename)
 	return mod
 end
 
--- The vendored libs require their siblings by bare/slashed names (`libraryUtil`,
--- etc.). Install one loader resolving those against vendor/mw/.
-local function vendorLoader(name)
+-- The lualib's modules require their siblings by bare/slashed names
+-- (`libraryUtil`, etc.). Install one loader resolving those against the lualib root.
+local function lualibLoader(name)
 	local candidates = {
-		vendorDir() .. '/' .. name .. '.lua',
-		vendorDir() .. '/' .. name:gsub('%.', '/') .. '.lua',
+		lualibDir() .. '/' .. name .. '.lua',
+		lualibDir() .. '/' .. name:gsub('%.', '/') .. '.lua',
 	}
 	for _, p in ipairs(candidates) do
 		if fileExists(p) then
 			local chunk, err = loadfile(p)
 			if not chunk then
-				return '\n\t[vendor] load error in ' .. p .. ': ' .. tostring(err)
+				return '\n\t[lualib] load error in ' .. p .. ': ' .. tostring(err)
 			end
 			return chunk
 		end
@@ -275,24 +277,24 @@ local function vendorLoader(name)
 	return nil
 end
 
-local function installVendorLoader()
+local function installLualibLoader()
 	for _, l in ipairs(package.loaders) do
-		if l == vendorLoader then
+		if l == lualibLoader then
 			return
 		end
 	end
-	table.insert(package.loaders, vendorLoader)
+	table.insert(package.loaders, lualibLoader)
 end
 
 --- Headless-init one lualib. Reproduces the on-wiki contract: publish _G.mw, set
 --- _G.mw_interface to the (possibly empty) PHP-callback stand-in, call setupInterface.
 --- @param libKey string  status key, e.g. 'mw.html'
---- @param basename string  vendored file, e.g. 'mw.html.lua'
+--- @param basename string  lualib file, e.g. 'mw.html.lua'
 --- @param opts table  setupInterface options
 --- @param iface table|nil  mw_interface stand-in (defaults to {})
 --- @param onFail function|nil  fallback installer if init throws
 local function initLib(libKey, basename, opts, iface, onFail)
-	local mod, err = loadVendored(basename)
+	local mod, err = loadLualib(basename)
 	if not (mod and mod.setupInterface) then
 		M.lualibStatus[libKey] = 'minimal (' .. tostring(err) .. ')'
 		if onFail then
@@ -317,9 +319,9 @@ local function initLib(libKey, basename, opts, iface, onFail)
 end
 
 local function installLualib()
-	installVendorLoader()
+	installLualibLoader()
 
-	M.lualibStatus['mw.ustring'] = 'shim (byte-wise + UTF-8 char/codepoint; not vendored)'
+	M.lualibStatus['mw.ustring'] = 'shim (byte-wise + UTF-8 char/codepoint; not from lualib)'
 
 	-- mw.text — fast paths (trim/encode/decode/split) are pure-Lua; the few PHP
 	-- paths (unstrip/killMarkers/json*) are stubbed to error only if actually hit.
