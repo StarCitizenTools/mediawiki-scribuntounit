@@ -230,7 +230,7 @@ mw.site = {
 -- that, on-wiki, receives a PHP callback table; headless we pass minimal opts and
 -- Lua stand-ins for the few PHP callbacks the pure-Lua paths invoke.
 
-M.lualibStatus = {} -- lib name -> 'lualib' | 'shim' | 'minimal' | error string
+M.lualibStatus = {} -- lib name -> 'lualib' | 'shim' | 'minimal' | 'extlib' | error string
 
 local function fileExists(p)
 	local f = io.open(p, 'r')

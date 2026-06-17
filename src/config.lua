@@ -20,6 +20,8 @@ local DEFAULTS = {
 	setup = nil,
 	-- Core Scribunto lualib ref to fetch (overridable via SCRIBUNTO_REF env).
 	scribunto = { ref = 'REL1_43' },
+	-- Extension Scribunto libraries to load: name -> { repo?, ref?, path, interface? }.
+	libraries = {},
 }
 
 --- @return table config  fields: moduleRoot, stubs, skip, setup, scribunto
@@ -47,6 +49,9 @@ function M.load()
 	end
 	if cfg.scribunto.ref == nil then
 		cfg.scribunto.ref = DEFAULTS.scribunto.ref
+	end
+	if cfg.libraries == nil then
+		cfg.libraries = DEFAULTS.libraries
 	end
 	return cfg
 end
