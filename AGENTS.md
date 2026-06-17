@@ -10,9 +10,10 @@ tests. It runs a wiki's [ScribuntoUnit](https://www.mediawiki.org/wiki/Module:Sc
 suites headless under a plain `lua5.1` interpreter — no wiki, no PHP, no
 LuaSandbox — so modules can be gated in CI before they ship.
 
-It does this by vendoring the **real** Scribunto `REL1_43` Lua library
-(`mw.html`/`mw.text`/`mw.uri`), shimming the PHP-coupled surface, resolving
-`require('Module:X')` to on-disk files, and auto-discovering `**/testcases.lua`.
+It does this by fetching the **real** Scribunto Lua library
+(`mw.html`/`mw.text`/`mw.uri`) for a chosen MediaWiki ref into a local cache,
+shimming the PHP-coupled surface, resolving `require('Module:X')` to on-disk
+files, and auto-discovering `**/testcases.lua`.
 
 ## Layout
 
@@ -21,14 +22,17 @@ It does this by vendoring the **real** Scribunto `REL1_43` Lua library
   - `bootstrap.lua` — wires config → resolver → stubs → mw env → setup hook.
   - `resolver.lua` — `Module:X` → `<repoRoot>/<moduleRoot>/…` + the package loader.
   - `shims.lua` — `strict`, `loadData`/`loadJsonData` (+ frozen-table), stub mechanism.
-  - `mwenv.lua` — the headless `mw.*` environment (vendored lualib + generic shims).
+  - `mwenv.lua` — the headless `mw.*` environment (fetched lualib + generic shims).
   - `config.lua` — loads the consumer's `scribuntounit.config.lua`.
   - `paths.lua` — resolved `libRoot` / `repoRoot` singleton.
-- `vendor/` — bundled upstream libraries, **verbatim**. GPL-2.0-or-later lualib +
-  MIT dkjson. Provenance + pin in `vendor/REVISION`.
+- `vendor/` — bundled `dkjson.lua` (MIT), **verbatim**, the only committed
+  third-party file. The Scribunto lualib is **fetched** (not vendored) by
+  `bin/scribuntounit-fetch`; see `vendor/REVISION`.
 - `examples/` — the library's own self-test: sample modules + `testcases.lua` +
   `scribuntounit.config.lua`. This is what CI runs.
 - `bin/scribuntounit` — launcher for mise's `github` backend.
+- `bin/scribuntounit-fetch` — downloads the Scribunto lualib for `scribunto.ref`
+  into `.scribuntounit/` (the runner itself has no network code).
 
 ## Architecture
 
@@ -57,8 +61,11 @@ module root, un-stubs each unit-under-test, and runs each via `suite:runSuite()`
 ## Invariants — do not break these
 
 - **Vendored files are verbatim.** Never reformat anything under `vendor/`
-  (excluded via `.styluaignore` + `.gitattributes`). To track a different
-  MediaWiki release, re-vendor from that branch and update `vendor/REVISION`.
+  (excluded via `.styluaignore` + `.gitattributes`). The only vendored file is
+  `vendor/dkjson.lua`. The Scribunto lualib is fetched, not vendored: to track a
+  different MediaWiki release, change `scribunto.ref` / `SCRIBUNTO_REF` and re-run
+  `scribuntounit-fetch` — never commit the fetched lualib (`.scribuntounit/` is
+  gitignored).
 - **Load chunks under their `Module:` name.** `resolver.lua` uses
   `loadstring(src, '@'..name)` so runtime error locations read `Module:X:line:`
   exactly as on-wiki — ScribuntoUnit's `assertThrows` location-stripping depends
@@ -78,7 +85,7 @@ module root, un-stubs each unit-under-test, and runs each via `suite:runSuite()`
 ## Scope
 
 This runner gates **logic**, not rendering or live wiki I/O. `mw.html`/`text`/`uri`
-are real (vendored); `mw.ustring`/`language`/`title`/`site` are shims (no full
+are real (fetched); `mw.ustring`/`language`/`title`/`site` are shims (no full
 Unicode/locale; no `formatDate`); the live parser, `mw.smw`, and the DB are out of
 scope. A module leaning on those will diverge from the wiki — test it on-wiki.
 Keep this boundary honest in code and docs.
@@ -99,15 +106,12 @@ the canonical `Module:ScribuntoUnit` in their own `moduleRoot`.
 
 ## Licensing
 
-Dual `GPL-2.0-or-later AND MIT` (see `LICENSE`). The combined distribution is GPL
-(it bundles the GPL lualib); authored files under `src/`/`bin/`/`examples/` are
-independently MIT via per-file SPDX. Keep per-file `SPDX-License-Identifier: MIT`
-on new authored files. Do not relabel the whole repo as bare MIT — that would
-mislabel the bundled GPL files.
+**MIT** (see `LICENSE`). Only `vendor/dkjson.lua` (MIT) is vendored. Keep per-file
+`SPDX-License-Identifier: MIT` on new authored files.
 
 ## Delivery
 
 Distributed via GitHub releases, consumed through mise's `github` backend
 (`"github:StarCitizenTools/mediawiki-scribuntounit" = { version = "…", bin_path = "bin" }`).
-A release is a tarball of `src/` + `vendor/` + `bin/`; `bin/scribuntounit` is a
+A release is a tarball of `src/` + `vendor/` (dkjson only) + `bin/` (including `scribuntounit-fetch`); `bin/scribuntounit` is a
 symlink-safe launcher that execs the system `lua5.1` against `src/run.lua`.
