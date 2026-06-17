@@ -37,6 +37,14 @@ local mwenv = require('mwenv')
 _G.mw = mwenv.mw
 _G.__MW_LUALIB_STATUS = mwenv.lualibStatus
 
+-- Load consumer-declared extension libraries (real upstream Lua + benign-default
+-- interface) into mw.ext.*, before setup so a setup hook can still override them.
+-- Load order is undefined (pairs); inter-library setupInterface dependencies are unsupported.
+local extlib = require('extlib')
+for name, spec in pairs(config.libraries or {}) do
+	extlib.load(name, spec, mwenv.mw, mwenv.lualibStatus)
+end
+
 if type(config.setup) == 'function' then
 	config.setup({
 		mw = mwenv.mw,

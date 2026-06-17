@@ -8,6 +8,19 @@ return {
 	-- Pin the Scribunto lualib ref the self-test fetches.
 	scribunto = { ref = 'REL1_43' },
 
+	-- Extension libraries: load real .lua and stub only PHP leaves. Local fixture
+	-- here; a fetched one (mw.ext.tabber) is added in Task 2.
+	libraries = {
+		['mw.ext.example'] = {
+			path = 'extlibs/mw.ext.example.lua',
+			interface = {
+				render = function(opts)
+					return 'RENDER:' .. tostring(opts and opts.label or '')
+				end,
+			},
+		},
+	},
+
 	-- Render primitives with no headless-safe implementation: install as inert
 	-- stubs so suites that only need a string back don't drag in the real module.
 	stubs = { 'Icon' },
