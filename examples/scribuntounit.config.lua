@@ -19,6 +19,11 @@ return {
 				end,
 			},
 		},
+		['mw.ext.tabber'] = {
+			repo = 'StarCitizenTools/mediawiki-extensions-TabberNeue',
+			ref = 'v4.0.0', -- pinned for a hermetic self-test
+			path = 'includes/Scribunto/mw.ext.tabber.lua',
+		},
 	},
 
 	-- Render primitives with no headless-safe implementation: install as inert

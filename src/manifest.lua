@@ -9,16 +9,35 @@ local SCRIBUNTO_REPO = 'wikimedia/mediawiki-extensions-Scribunto'
 local LUALIB_SRC = 'includes/Engines/LuaCommon/lualib'
 local LUALIB_DEST = '.scribuntounit/lualib'
 
--- TODO: a later change will append extension-library entries to this list.
---- @param config table  loaded consumer config (uses config.scribunto.ref)
+--- @param config table  loaded consumer config (uses config.scribunto.ref + config.libraries)
 --- @return table[]  list of { repo, ref, src, dest }
 function M.build(config)
 	local scribunto = config.scribunto or {}
 	-- SCRIBUNTO_REF env wins (CI matrix override); else config; else REL1_43.
 	local ref = os.getenv('SCRIBUNTO_REF') or scribunto.ref or 'REL1_43'
-	return {
+	local entries = {
 		{ repo = SCRIBUNTO_REPO, ref = ref, src = LUALIB_SRC, dest = LUALIB_DEST },
 	}
+	-- Fetched extension libraries (entries with a `repo`); local ones aren't fetched.
+	for name, spec in pairs(config.libraries or {}) do
+		if spec.repo then
+			if not spec.ref or spec.ref == '' then
+				io.stderr:write('ERROR: libraries["' .. name .. '"] declares `repo` but no `ref`\n')
+				os.exit(1)
+			end
+			if not spec.path or spec.path == '' then
+				io.stderr:write('ERROR: libraries["' .. name .. '"] declares `repo` but no `path`\n')
+				os.exit(1)
+			end
+			entries[#entries + 1] = {
+				repo = spec.repo,
+				ref = spec.ref,
+				src = spec.path,
+				dest = '.scribuntounit/ext/' .. name,
+			}
+		end
+	end
+	return entries
 end
 
 --- Render entries as TAB-separated lines (repo, ref, src, dest), newline-terminated.
